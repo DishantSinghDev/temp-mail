@@ -6,6 +6,7 @@ import { authOptions } from '../auth/[...nextauth]/route'
 import jwt from "jsonwebtoken";
 import { verify } from '@/lib/jwt'; // <-- Import your custom verify function
 import { headers } from 'next/headers'; // <-- Import headers to read Authorization
+import { rateLimiter } from '@/lib/rate-limiter';
 
 // Define the shape of your NextAuth session
 interface UserSession {
@@ -23,28 +24,29 @@ async function handleAuthentication() {
   let tokenData: { plan: string } | null = null;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    // 1. Prioritize Bearer token authentication
+    // 2. Fallback to Bearer token authentication
     const token = authHeader.substring(7); // Remove "Bearer " prefix
     const payload = await verify(token);
     if (payload) {
-      tokenData = { plan: payload.plan || "" }; // Assume the plan is in the custom JWT payload
+      tokenData = { plan: "" }; // Assume the plan is in the custom JWT payload
     } else {
       // If token is present but invalid, deny access
       return { error: 'Invalid token', status: 401 };
     }
   } else {
-    // 2. Fallback to NextAuth session
-    const session: UserSession | null = await getServerSession(authOptions);
-    if (session?.user) {
-      tokenData = { plan: session.user.plan || "" };
-    }
+    return { error: 'Authentication required', status: 401 };
+  }
+
+  const session: UserSession | null = await getServerSession(authOptions);
+  if (session?.user) {
+    tokenData = { plan: session.user.plan || "" };
   }
 
   if (!tokenData) {
     // If no authentication method succeeded
     return { error: 'Authentication required', status: 401 };
   }
-  
+
   // 3. Sign a new short-lived token with the plan for the backend service
   const signedToken = jwt.sign(
     { plan: tokenData.plan },
@@ -56,11 +58,14 @@ async function handleAuthentication() {
 }
 
 export async function GET(request: Request) {
+  const rateLimitResponse = await rateLimiter();
+  if (rateLimitResponse) return rateLimitResponse;
+
   const authResult = await handleAuthentication();
   if (authResult.error) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
-  
+
   const { signedToken } = authResult;
 
   const { searchParams } = new URL(request.url)
@@ -77,7 +82,7 @@ export async function GET(request: Request) {
         'Authorization': `Bearer ${signedToken}`
       }
     };
-    
+
     let data;
     if (messageId) {
       // Fetch a single message
@@ -95,11 +100,15 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const rateLimitResponse = await rateLimiter();
+  if (rateLimitResponse) return rateLimitResponse;
+
+
   const authResult = await handleAuthentication();
   if (authResult.error) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
-  
+
   const { signedToken } = authResult;
 
   const { searchParams } = new URL(request.url)

@@ -18,7 +18,7 @@ function truncate(text: string, maxLength: number): string {
 export async function generateMetadata(
   { params }: { params: { slug: string } }
 ): Promise<Metadata> {
-  const post = await getPostBySlug(params.slug);
+  const post = getPostBySlug(params.slug);
 
   if (!post) {
     return {
@@ -40,7 +40,9 @@ export async function generateMetadata(
 
 
 export default async function BlogPost({ params }: { params: { slug: string } }) {
-  const post = await getPostBySlug(params.slug)
+  const post = getPostBySlug(params.slug)
+
+  console.log(post)
 
   if (!post) {
     notFound()

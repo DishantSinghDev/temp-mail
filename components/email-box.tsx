@@ -25,7 +25,7 @@ import { Session } from "next-auth";
 import { ManageInboxesModal } from "./manage-inboxes-modal";
 
 const FREE_DOMAINS = [
-  "saleis.live", "arrangewith.me", "areueally.info", "ditapi.info",
+  "saleis.live", "areueally.info", "ditapi.info",
   "ditcloud.info", "ditdrive.info", "ditgame.info", "ditlearn.info",
   "ditpay.info", "ditplay.info", "ditube.info", "junkstopper.info"
 ];
